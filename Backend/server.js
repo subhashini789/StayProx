@@ -7,12 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect Database
 connectDB();
 
-// Test route
 app.get("/", (req, res) => {
-  res.send("StayProx API Running with MongoDB...");
+  res.send("StayProx API Running");
 });
 
 app.listen(5000, () => {
