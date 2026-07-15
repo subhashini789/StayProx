@@ -10,6 +10,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+const path = require('path');
+// serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 connectDB();
 
