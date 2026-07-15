@@ -1,251 +1,241 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from 'react';
 import {
-  View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
+  View,
   Image,
-  Alert
-} from "react-native";
-import axios from "axios";
+} from 'react-native';
+import api from '../services/api';
 
-export default function SignupScreen() {
+const primaryBlue = '#1463f3';
 
-  const [role, setRole] = useState("tenant");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [adress, setAdress] = useState("");
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('tenant');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canSubmit = useMemo(
+    () => name.trim() && email.trim() && password.trim() && confirmPassword.trim(),
+    [name, email, password, confirmPassword]
+  );
 
   const registerUser = async () => {
-    try {
+    if (!canSubmit) {
+      Alert.alert('Missing details', 'Please complete all fields.');
+      return;
+    }
 
-      const res = await axios.post("http://YOUR_IP:5000/api/register", {
-        role,
-        name,
-        email,
+    if (password !== confirmPassword) {
+      Alert.alert('Password mismatch', 'Please make sure both passwords match.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await api.post('/auth/register', {
+        name: name.trim(),
+        email: email.trim(),
         password,
-        phone
+        role,
       });
 
-      Alert.alert("Success", res.data.message);
-
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: 'Login', params: { registeredEmail: response.data.user?.email || email.trim() } },
+        ],
+      });
     } catch (error) {
-      Alert.alert("Error", error.response?.data?.message || "Something went wrong");
+      Alert.alert('Registration failed', error?.response?.data?.message || 'Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.wrapper}
+    >
+      <View style={styles.container}>
+        <View style={styles.brandRow}>
+          <Image source={require('../assets/logo.jpg')} style={styles.logoBadge} />
+          <Text style={styles.brand}>StayProx</Text>
+        </View>
 
-      <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.heading}>Create account</Text>
+        <Text style={styles.subheading}>Register to browse and book your next room.</Text>
 
-      {/* Role Selection */}
+        <View style={styles.roleRow}>
+          <TouchableOpacity
+            style={[styles.roleButton, role === 'tenant' && styles.roleButtonActive]}
+            onPress={() => setRole('tenant')}
+          >
+            <Text style={[styles.roleText, role === 'tenant' && styles.roleTextActive]}>Tenant</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
+            onPress={() => setRole('owner')}
+          >
+            <Text style={[styles.roleText, role === 'owner' && styles.roleTextActive]}>Owner</Text>
+          </TouchableOpacity>
+        </View>
 
-      <Text style={styles.label}>I am a...</Text>
-
-      <View style={styles.roleContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Full name"
+          placeholderTextColor="#97a4ba"
+          value={name}
+          onChangeText={setName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Email address"
+          placeholderTextColor="#97a4ba"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#97a4ba"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm password"
+          placeholderTextColor="#97a4ba"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
 
         <TouchableOpacity
-          style={[
-            styles.roleBox,
-            role === "tenant" && styles.selected
-          ]}
-          onPress={() => setRole("tenant")}
+          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          onPress={registerUser}
+          disabled={!canSubmit || isSubmitting}
         >
-
-            <Image
-               source={require("../assets/tenant.png")}
-               style={styles.icon}
-            />
-
-          <Text style={styles.roleTitle}>Tenant</Text>
-          <Text style={styles.roleDesc}>Looking for a place to stay</Text>
+          <Text style={styles.buttonText}>{isSubmitting ? 'Registering...' : 'Register'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.roleBox,
-            role === "owner" && styles.selected
-          ]}
-          onPress={() => setRole("owner")}
-        >
-
-            <Image
-    source={require("../assets/owner.png")}
-    style={styles.icon}
-  />
-
-          <Text style={styles.roleTitle}>Owner</Text>
-          <Text style={styles.roleDesc}>Listing a property</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.switchText}>Already have an account? Login</Text>
         </TouchableOpacity>
-
       </View>
-
-      {/* Inputs */}
-
-      <TextInput
-        placeholder="Enter your full name"
-        placeholderTextColor="#888"
-        style={styles.input}
-        onChangeText={setName}
-      />
-
-      <TextInput
-        placeholder="Enter your email address"
-        placeholderTextColor="#888"
-        style={styles.input}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        placeholder="Enter your password"
-        placeholderTextColor="#888"
-        style={styles.input}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
-      
-      <TextInput
-        placeholder="Enter confirm password"
-        placeholderTextColor="#888"
-        style={styles.input}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
-
-      <TextInput
-        placeholder="Phone number"
-        placeholderTextColor="#888"
-        style={styles.input}
-        onChangeText={setPhone}
-      />
-
-      <TextInput
-        placeholder="Enter your Address"
-        placeholderTextColor="#888"
-        style={styles.input}
-        onChangeText={setAdress}
-      />
-
-      {/* Button */}
-
-      <TouchableOpacity style={styles.button} onPress={registerUser}>
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
-      <View style={styles.loginContainer}>
-  <Text style={styles.loginTextNormal}>Already have an account? </Text>
-  <Text
-    style={styles.loginText}
-    onPress={() => navigation.navigate("Login")}
-  >
-    Login
-  </Text>
-</View>
-
-    </View>
-    
+    </KeyboardAvoidingView>
   );
-  
 }
 
 const styles = StyleSheet.create({
-
-  container: {
+  wrapper: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#fff"
-    
+    backgroundColor: '#f5f7fb',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 35 ,
-    marginTop: 25 
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-
-  label: {
-    fontSize: 28,
-    marginBottom: 10,
-    fontWeight: "bold"
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-
-  roleContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20
+  logoBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
   },
-
-  roleBox: {
-    width: "48%",
-    borderWidth: 1,
-    borderColor: "#ccc",
+  brand: {
+    marginLeft: 12,
+    fontSize: 25,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  heading: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  subheading: {
+    color: '#5f6f89',
+    marginBottom: 18,
+    fontSize: 14,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 14,
+  },
+  roleButton: {
+    flex: 1,
+    height: 36,
     borderRadius: 10,
-    padding: 15
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  selected: {
-    borderColor: "#007bff",
-    backgroundColor: "#e6f0ff"
+  roleButtonActive: {
+    backgroundColor: '#fff',
   },
-
-  roleTitle: {
-    fontWeight: "bold",
-    fontSize: 16
+  roleText: {
+    color: '#64748b',
+    fontWeight: '700',
   },
-
-  roleDesc: {
-    fontSize: 12,
-    color: "gray"
+  roleTextActive: {
+    color: '#0f172a',
   },
-
   input: {
-  borderWidth: 2,
-  borderColor: "#ccc",
-  borderRadius: 8,
-  height: 58,        
-  paddingHorizontal: 15,
-  fontSize: 17,      
-  marginBottom: 15
-},
-
+    borderWidth: 1,
+    borderColor: '#d6deea',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
+    marginBottom: 12,
+    color: '#111827',
+    backgroundColor: '#fdfefe',
+  },
   button: {
-    backgroundColor: "#007bff",
-    padding: 15,
-    borderRadius: 10
+    marginTop: 6,
+    borderRadius: 14,
+    backgroundColor: primaryBlue,
+    paddingVertical: 14,
   },
-
-  icon: {
-  width: 40,
-  height: 40,
-  marginBottom: 10,
-  alignSelf: "left"
-},
-
+  buttonDisabled: {
+    backgroundColor: '#89adef',
+  },
   buttonText: {
-    color: "white",
-    textAlign: "center",
-    fontWeight: "bold"
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 16,
   },
-  loginContainer: {
-  flexDirection: "row",
-  justifyContent: "center",
-  marginTop: 20
-},
-
-loginTextNormal: {
-  fontSize: 17,
-  color: "#000"
-},
-
-loginText: {
-  color: "#007bff",
-  fontWeight: "bold",
-  fontSize: 17, 
-}
-
+  switchText: {
+    marginTop: 16,
+    textAlign: 'center',
+    color: primaryBlue,
+    fontWeight: '600',
+  },
 });
