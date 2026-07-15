@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
@@ -25,7 +26,7 @@ const quickActions = [
   { label: 'Explore Rooms', icon: 'search-outline', action: 'explore' },
 ];
 
-export default function DashboardScreen({ navigation }) {
+export default function DashboardScreen({ navigation, route }) {
   const [stats, setStats] = useState(fallbackStats);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +74,38 @@ export default function DashboardScreen({ navigation }) {
       mounted = false;
     };
   }, []);
+
+  // If a new or updated room is passed via navigation params, merge it into the list immediately
+  useEffect(() => {
+    const newRoom = route?.params?.newRoom;
+    if (!newRoom) return;
+
+    setRooms((prev) => {
+      const exists = prev.some((r) => r._id === newRoom._id);
+      const updated = exists ? prev.map((r) => (r._id === newRoom._id ? newRoom : r)) : [newRoom, ...prev];
+
+      // recompute stats from updated list
+      const ratings = updated
+        .map((room) => Number(room?.rating))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      const avgRating = ratings.length
+        ? (ratings.reduce((sum, value) => sum + value, 0) / ratings.length).toFixed(1)
+        : fallbackStats.avgRating;
+
+      const roomCount = updated.length;
+      const upcoming = Math.min(roomCount, 3) || fallbackStats.upcoming;
+      const completed = roomCount > 3 ? roomCount - 3 : fallbackStats.completed;
+      const savedRooms = roomCount || fallbackStats.savedRooms;
+
+      setStats({ upcoming, completed, savedRooms, avgRating });
+      setApiMessage(updated.length ? '' : 'No listings yet — start by adding your first room.');
+
+      return updated;
+    });
+
+    // clear the param so repeated navigations don't reapply
+    navigation.setParams({ newRoom: undefined });
+  }, [route?.params?.newRoom]);
 
   const summaryCards = useMemo(
     () => [
@@ -157,29 +190,35 @@ export default function DashboardScreen({ navigation }) {
           {loading ? (
             <Text style={styles.loadingText}>Loading listings...</Text>
           ) : rooms.length ? (
-            rooms.map((room) => (
-              <View key={room._id} style={styles.listItem}>
-                <View>
-                  <Text style={styles.listingTitle}>{room.title}</Text>
-                  <Text style={styles.listingMeta}>{room.location}</Text>
-                  <Text style={styles.listingPrice}>₱{room.price} / mo</Text>
+            rooms.map((room) => {
+              const thumb = room?.images && room.images.length ? `${api.defaults.baseURL.replace('/api','')}${room.images[0]}` : null;
+              return (
+                <View key={room._id} style={styles.listItem}>
+                  <View style={styles.listingLeft}>
+                    {thumb ? <Image source={{ uri: thumb }} style={styles.listThumb} /> : null}
+                    <View style={styles.listingText}>
+                      <Text style={styles.listingTitle}>{room.title}</Text>
+                      <Text style={styles.listingMeta}>{room.location}</Text>
+                      <Text style={styles.listingPrice}>₱{room.price} / mo</Text>
+                    </View>
+                  </View>
+                  <View style={styles.listActions}>
+                    <TouchableOpacity
+                      style={styles.smallButton}
+                      onPress={() => navigation.navigate('AddBoarding', { room })}
+                    >
+                      <Text style={styles.smallButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.smallButtonSecondary}
+                      onPress={() => navigation.navigate('RoomDetails', { item: room })}
+                    >
+                      <Text style={styles.smallButtonTextSecondary}>View</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.listActions}>
-                  <TouchableOpacity
-                    style={styles.smallButton}
-                    onPress={() => navigation.navigate('AddBoarding', { room })}
-                  >
-                    <Text style={styles.smallButtonText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.smallButtonSecondary}
-                    onPress={() => navigation.navigate('RoomDetails', { item: room })}
-                  >
-                    <Text style={styles.smallButtonTextSecondary}>View</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={styles.loadingText}>{apiMessage || 'No listings found.'}</Text>
           )}
@@ -333,6 +372,9 @@ const styles = StyleSheet.create({
     color: '#1463f3',
     fontWeight: '700',
   },
+  listingLeft: { flexDirection: 'row', alignItems: 'center' },
+  listThumb: { width: 64, height: 64, borderRadius: 8, marginRight: 10 },
+  listingText: { maxWidth: '60%' },
   listActions: {
     flexDirection: 'row',
     alignItems: 'center',

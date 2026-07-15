@@ -11,7 +11,7 @@ const getRooms = async (_req, res) => {
 
 const createRoom = async (req, res) => {
   try {
-    const { title, location, price, description, contact } = req.body;
+    const { title, location, price, description, contact, images } = req.body;
     if (!title || !location || price === undefined || price === null) {
       return res.status(400).json({ message: "Title, location and price are required" });
     }
@@ -22,6 +22,7 @@ const createRoom = async (req, res) => {
       price: Number(price),
       description: description || "",
       contact: contact || "",
+      images: images || [],
       owner: req.user._id,
     });
 
@@ -38,7 +39,7 @@ const updateRoom = async (req, res) => {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    const { title, location, price, description, contact } = req.body;
+    const { title, location, price, description, contact, images } = req.body;
     if (!title || !location || price === undefined || price === null) {
       return res.status(400).json({ message: 'Title, location and price are required' });
     }
@@ -48,6 +49,7 @@ const updateRoom = async (req, res) => {
     room.price = Number(price);
     room.description = description || '';
     room.contact = contact || '';
+    room.images = images || room.images || [];
 
     await room.save();
     res.json(room);

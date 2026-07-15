@@ -47,10 +47,11 @@ export default function RegisterScreen({ navigation }) {
         role,
       });
 
+      const registeredEmail = response?.data?.user?.email || email.trim();
       navigation.reset({
         index: 0,
         routes: [
-          { name: 'Login', params: { registeredEmail: response.data.user?.email || email.trim() } },
+          { name: 'Login', params: { registeredEmail } },
         ],
       });
     } catch (error) {
